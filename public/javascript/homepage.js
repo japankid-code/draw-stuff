@@ -1,8 +1,8 @@
 // select all relavant elements up here
 const usernameEl = document.getElementById(`username`);
 const playButtonEl = document.getElementById("playButton");
-const joinGameNumberEl = document.getElementById("gameNumber");
-const createNumRounds = document.getElementById(`roundNumber`);
+const joinGameNumberEl = document.getElementById("gameNumberInput");
+const createNumRounds = document.getElementById(`roundNumberInput`);
 const createRoundTime = document.getElementById(`roundTimeInput`);
 const createDrawList = document.getElementById(`drawListInput`);
 const dropdown = document.getElementById("gameOption");
@@ -25,7 +25,7 @@ async function createUser(avatar, username) {
     .then((resp) => resp.json())
     .then((data) => {
       if (data.success) {
-        const user = data;
+        const user = data.dataValues;
         sessionStorage.setItem("user", JSON.stringify(user));
         return user;
       } else {
@@ -82,7 +82,7 @@ async function addUserToGame(game_id, user_id) {
     },
   });
   const data = await response.json();
-  window.location = `/play/${data.id}`;
+  window.location = `/play/${game_id}`;
   return data;
 }
 
@@ -102,17 +102,11 @@ async function getAllGameIds() {
 
 let playFunction = async (type) => {
   const username = usernameEl.value;
-  //const availableGames = await getAllGameIds();
+  const availableGames = await getAllGameIds();
   const user = await createUser(1, username);
+
   if (user === undefined) {
     return;
-  }
-
-  const numRounds = createNumRounds.value;
-  const roundTime = createRoundTime.value;
-  if (drawList.textContent) {
-    let drawPhrases = drawList.textContent.split(" ");
-    let phraseObj = { phrases: drawList };
   }
 
   switch (type) {
@@ -120,16 +114,17 @@ let playFunction = async (type) => {
       const randomGame =
         availableGames[Math.floor(Math.random() * availableGames.length)];
       await addUserToGame(randomGame, user.id);
-      window.location.href = `/play/${randomGame}`;
       break;
     case "join":
+      const friendsGame = joinGameNumberEl.value;
       addUserToGame(friendsGame, user.id);
-      window.location = `/play/${friendsGame}`;
       break;
     case "create":
-      let createdGame = await createGame(numRounds, roundTime, [phraseObj]);
+      const numRounds = createNumRounds.value;
+      const roundTime = createRoundTime.value;
+      const phraseObj = { phrases: createDrawList.value.split(" ") };
+      const createdGame = await createGame(numRounds, roundTime, phraseObj);
       addUserToGame(createdGame.id, user.id);
-      window.location = `/play/${game.id}`;
       break;
   }
 };
