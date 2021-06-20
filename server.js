@@ -9,7 +9,6 @@ const session = require("express-session");
 const { response } = require("express");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const secret = process.env.SECRET;
-const cors = require("cors");
 const { Game, Users, Round, Game_Users } = require("./models");
 
 const app = express();
@@ -35,24 +34,6 @@ app.set("view engine", "handlebars");
 
 // use sessions
 app.use(session(sess));
-
-//cors
-// const allowedOrigins = ['http://localhost:3001', 'www.example.com'];
-app.use(
-  cors()
-  // cors({
-  //   origin: function (origin, callback) {
-  //     if (!origin) {
-  //       return callback(null, true);
-  //     }
-  //     if (allowedOrigins.indexOf(origin) === -1) {
-  //       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-  //       return callback(new Error(msg), false);
-  //     }
-  //     return callback(null, true);
-  //   }
-  // })
-);
 
 // middleware for JSON and things
 app.use(express.json());
