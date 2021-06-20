@@ -9,7 +9,7 @@ const session = require("express-session");
 const { response } = require("express");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const secret = process.env.SECRET;
-const { Game, Users, Round, Game_Users } = require("./models");
+const { Game, User, Round, Game_User } = require("./models");
 
 const app = express();
 // add websocket connection
@@ -53,7 +53,7 @@ io.on("connection", (socket) => {
     console.log("now playing in room: " + id);
 
     // have User join game
-    Game_Users.create({
+    Game_User.create({
       userId: user.id,
       gameId: id,
     }).then((gameUser) => {
@@ -79,8 +79,8 @@ const fetchGame = async (gameID) => {
     },
     include: [
       {
-        model: Users,
-        through: [Game_Users],
+        model: User,
+        through: [Game_User],
       },
       {
         model: Round,

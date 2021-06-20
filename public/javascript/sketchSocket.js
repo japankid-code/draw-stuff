@@ -48,12 +48,12 @@ const gameData = async (gameId) => {
 
 const mapPlayerData = () => {
   // map players to a new array
-  players = dbGameDataObj.users.map((player) => {
+  players = dbGameDataObj.User.map((player) => {
     const playerData = {
       username: player.username,
       id: player.id,
-      score: player.game_users.score,
-      drawing: player.game_users.drawing,
+      score: player.game_User.score,
+      drawing: player.game_User.drawing,
       session_id: player.session_id,
       game_id: dbGameDataObj.id,
     };

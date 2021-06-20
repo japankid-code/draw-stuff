@@ -12,7 +12,7 @@ const formErrors = document.getElementById("formErrors");
 
 // fetch function to post a new user to the database
 async function createUser(avatar, username) {
-  const response = await fetch(`/api/users`, {
+  const response = await fetch(`/api/User`, {
     method: "POST",
     body: JSON.stringify({
       username: username,
