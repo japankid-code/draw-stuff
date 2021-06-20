@@ -4,7 +4,7 @@ let scored; // local to prevent rescoring
 let drawStarted; // local to hide start drawing button
 let allPlayers;
 let drawingPlayer; // player set to draw true in db
-let scoringPlayers = []; // players set to draw false in db
+let scoringPlayers; // players set to draw false in db
 let currentRound; // lowest round_number for game in db
 let leftToDraw; // dynamic list, shortens as game goes on
 let roundLength; // from game obj
@@ -151,7 +151,23 @@ const pageRender = () => {
     drawerUsernameEl.innerHTML = drawingPlayer.username;
   }
 
-  scoringPlayerList(scoringPlayers);
+  // scoring players list update
+  const scoringPlayerCards = scoringPlayers
+    .map((player) => {
+      return `<div id="scoring-player" class="m-2 flex flex-grow ring-2 items-center text-xl rounded-sm">
+  <div id='scorer-avatar' class='avatar m-2 w-8 h-8 bg-blue-300'></div>
+  <div id='scorer-username' class="flex-grow text-center text-xl self-center">
+    ${player.username}
+  </div>
+  |
+  <div id='scorer-score' class="flex-grow text-center text-xl self-center">
+    ${player.score}
+  </div>
+</div>`;
+    })
+    .join(""); // join removes commas, returns string
+  // update the HTML to show scoring players
+  scoringPlayersContainer.innerHTML = scoringPlayerCards;
 
   // draw word element update
   if (currentRound !== undefined) {
@@ -307,13 +323,7 @@ function setup() {
 
   socket.on("connect", () => {
     // server takes join message, adds client to room
-    socket.emit("join", gameRoom, currentUser);
-  });
-
-  socket.on("game-data", (gameData) => {
-    dbGameDataObj = gameData;
-    mapPlayerData();
-    pageRender();
+    socket.emit("join", gameRoom);
   });
 
   // Callback function
@@ -323,6 +333,11 @@ function setup() {
     line(data.x, data.y, data.px, data.py);
   });
 
+  socket.on("game-data", (gameData) => {
+    dbGameDataObj = gameData;
+    mapPlayerData();
+    pageRender();
+  });
   // Getting our buttons and the holder through the p5.js dom
   const color_picker = select("#pickcolor");
   const color_btn = select("#color-btn");

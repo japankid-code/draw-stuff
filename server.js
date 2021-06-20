@@ -54,7 +54,7 @@ io.on("connection", (socket) => {
 
     // have User join game
     Game_Users.create({
-      userId: user.dataValues.id,
+      userId: user.id,
       gameId: id,
     }).then((gameUser) => {
       // broadcast the user has joined to any other clients
