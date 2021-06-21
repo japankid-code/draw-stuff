@@ -1,6 +1,5 @@
-const url = window.location.href.split("/");
+const url = window.location.href.split("/").filter((str) => str.length >= 1);
 const gameRoom = url[url.length - 1];
-
 let dbGameDataObj;
 
 let scored; // local to prevent rescoring
@@ -19,15 +18,15 @@ let currentUser = JSON.parse(sessionStorage.getItem("user")) || {
 
 let socket;
 // for catching game data emitted by server socket
-const socketeer = () => {
+const socketeer = async () => {
   socket = io.connect();
   // socket recieves connect from server
   socket.on("connect", () => {
-    // server takes join message, adds client to room
+    // send server join message, add client to room
     socket.emit("join", gameRoom);
   });
   // recieve game data from server
-  socket.on("game-data", (gameData) => {
+  await socket.on("game-data", (gameData) => {
     dbGameDataObj = gameData;
     distributeGameData();
     pageRender();
@@ -74,14 +73,22 @@ const distributeGameData = () => {
     .shift(); // grab the first value, lowest round number
   // check if any rounds left
   currentRound === undefined
-    ? gameUpdateDB(gameRoom, 1, 1) // none left update game as complete
+    ? socket.emit("game-update", {
+        id: dbGameDataObj.id,
+        started: 1,
+        complete: 1,
+      }) // none left update game as complete
     : (leftToDraw = currentRound.left_to_draw.drawers);
 };
 
 const startGame = async () => {
   // update game to started and first player to drawing
-  await gameUpdateDB(gameRoom, 1, 0);
-  await drawingUpdateDB(allPlayers[0].id, 1);
+  await socket.emit("game-update", {
+    id: dbGameDataObj.id,
+    started: 1,
+    complete: 0,
+  });
+  await socket.emit("drawing-update", { id: allPlayers[0].id, drawing: 1 });
 };
 
 // sets
@@ -95,28 +102,37 @@ const playerDrawTimer = () => {
     // after the timer has finished...
     // set drawStarted locally back to false and then update drawer in db
     drawStarted = false;
-    const drawOff = await drawingUpdateDB(drawingPlayer.id, 0);
+    const drawOff = await socket.emit("drawing-update", {
+      id: drawingPlayer.id,
+      drawing: 0,
+    });
     // update round's left_to_draw list
-    const shiftDrawList = await roundUpdateDB(
-      gameRoom,
-      currentRound.round_number,
-      0,
-      1
-    );
+    const shiftDrawList = await socket.emit("round-update", {
+      gameId: gameRoom,
+      roundNum: currentRound.round_number,
+      complete: 0,
+      player_done: 1,
+    });
     // no need to refresh the list in local variables, socket does this
     // check if leftToDraw has any left
     if (leftToDraw[0] === undefined) {
       // end round if there aren't any drawers left
-      const roundEnd = await roundUpdateDB(
-        gameRoom,
-        currentRound.round_number,
-        1,
-        0
-      );
-      const startRoundDrawer = await drawingUpdateDB(scoringPlayers[0].id, 1);
+      const roundEnd = await socket.emit("round-update", {
+        gameId: gameRoom,
+        roundNum: currentRound.round_number,
+        complete: 1,
+        player_done: 0,
+      });
+      const startRoundDrawer = await socket.emit("drawing-update", {
+        id: scoringPlayers[0].id,
+        drawing: 0,
+      });
     } else {
       // turn drawing on for the next player
-      const drawOn = await drawingUpdateDB(leftToDraw[0], 1);
+      const nextDrawOn = await await socket.emit("drawing-update", {
+        id: leftToDraw[0],
+        drawing: 0,
+      });
     }
     drawStarted = false; // sets value in previous drawers client
     cv.background(255, 255, 255);
@@ -150,20 +166,7 @@ const pageRender = () => {
   }
 
   // scoring players list update
-  const scoringPlayerCards = scoringPlayers
-    .map((player) => {
-      return `<div id="scoring-player" class="m-2 flex flex-grow ring-2 items-center text-xl rounded-sm">
-  <div id='scorer-avatar' class='avatar m-2 w-8 h-8 bg-blue-300'></div>
-  <div id='scorer-username' class="flex-grow text-center text-xl self-center">
-    ${player.username}
-  </div>
-  |
-  <div id='scorer-score' class="flex-grow text-center text-xl self-center">
-    ${player.score}
-  </div>
-</div>`;
-    })
-    .join(""); // join removes commas, returns string
+  const scoringPlayerCards = scoringPlayerList();
   // update the HTML to show scoring players
   scoringPlayersContainer.innerHTML = scoringPlayerCards;
 
@@ -207,7 +210,7 @@ const pageRender = () => {
   }
 };
 
-const scoringPlayerList = (scoringPlayers) => {
+const scoringPlayerList = () => {
   // scoring players list update
   const scoringPlayerCards = scoringPlayers
     .map((player) => {
@@ -224,63 +227,7 @@ const scoringPlayerList = (scoringPlayers) => {
     })
     .join(""); // join removes commas, returns string
   // update the HTML to show scoring players
-  scoringPlayersContainer.innerHTML = scoringPlayerCards;
-};
-
-// put fetch function to update user scores as the game is played
-const scoreUpdateDB = async (user_id, score) => {
-  const response = await fetch(`/api/player/${user_id}/score`, {
-    method: "PUT",
-    body: JSON.stringify({ score: score }),
-    headers: { "Content-Type": "application/json" },
-  });
-  if (response.ok) {
-    return response;
-  } else {
-    console.log(response.statusText);
-  }
-};
-
-// put fetch to update player drawing status takes id and boolean
-const drawingUpdateDB = async (user_id, drawing) => {
-  const response = await fetch(`/api/player/${user_id}/drawing`, {
-    method: "PUT",
-    body: JSON.stringify({ drawing: drawing }),
-    headers: { "Content-Type": "application/json" },
-  });
-  if (response.ok) {
-    return response;
-  } else {
-    console.log(response.statusText);
-  }
-};
-
-// put fetch to update game completion takes id and 2 booleans
-const gameUpdateDB = async (game_id, started, complete) => {
-  const response = await fetch(`/api/game/${game_id}/play`, {
-    method: "PUT",
-    body: JSON.stringify({ complete: complete, started: started }),
-    headers: { "Content-Type": "application/json" },
-  });
-  if (response.ok) {
-    return response;
-  } else {
-    console.log(response.statusText);
-  }
-};
-
-// put fetch to update round completion, 2 ints and 2 booleans
-const roundUpdateDB = async (game_id, round_number, complete, player_done) => {
-  const response = await fetch(`/api/game/${game_id}/round/${round_number}`, {
-    method: "PUT",
-    body: JSON.stringify({ complete: complete, player_done: player_done }),
-    headers: { "Content-Type": "application/json" },
-  });
-  if (response.ok) {
-    return response;
-  } else {
-    console.log(response.statusText);
-  }
+  return scoringPlayerCards;
 };
 
 // button handler for scoring on drawing player
@@ -289,7 +236,9 @@ submitButtonEl.addEventListener("click", (e) => {
   const { id } = drawingPlayer;
   const score = scoreSelectEl.value;
   console.log(score);
-  scored ? console.log("already scored!!") : scoreUpdateDB(id, score);
+  scored
+    ? console.log("already scored!!")
+    : socket.emit("score-update", { id, score });
   scored = true;
 });
 

@@ -9,7 +9,13 @@ const session = require("express-session");
 const { response } = require("express");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const secret = process.env.SECRET;
-const { findGame } = require("./utils/game");
+const {
+  findGame,
+  scoreUpdate,
+  drawingUpdate,
+  gameUpdate,
+  roundUpdate,
+} = require("./utils/game");
 
 const app = express();
 // add websocket connection
@@ -54,9 +60,39 @@ io.on("connection", (socket) => {
 
     // have User join game
     // broadcast the user has joined to any other clients
-    findGame(id).then((game) => {
-      io.emit("game-data", game);
+    findAndEmit(id);
+
+    // socket recieves score update for player
+    socket.on("score-update", async ({ id, score }) => {
+      await scoreUpdate(id, score);
+      findAndEmit(id);
     });
+
+    // socket recieves drawing update for player
+    socket.on("drawing-update", async ({ id, drawing }) => {
+      await drawingUpdate(id, drawing);
+      findAndEmit(id);
+    });
+
+    // socket recieves game update from other clients
+    socket.on("game-update", async ({ id, started, complete }) => {
+      await gameUpdate(id, started, complete);
+      findAndEmit(id);
+    });
+
+    // socket recieves update to rounds from drawing player
+    socket.on(
+      "round-update",
+      async ({ gameId, roundNum, completeBool, player_done }) => {
+        await roundUpdate({
+          gameId,
+          roundNum,
+          completeBool,
+          player_done,
+        });
+        findAndEmit(id);
+      }
+    );
 
     // socket gets draw datas to emit to other clients
     socket.on("mouse", (data) => {
@@ -67,6 +103,11 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => console.log("Client has disconnected"));
 });
 
+const findAndEmit = (id) => {
+  findGame(id).then((game) => {
+    io.emit("game-data", game);
+  });
+};
 // p5 board init breaks with handlebars
 app.use(express.static(path.join(__dirname, "./src")));
 // play game page will render at whatever id

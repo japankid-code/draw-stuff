@@ -15,10 +15,11 @@ router.get("/game/:id/score", async (req, res) => {
       { model: Round, as: "game_rounds", attributes: ["phrase"] },
     ],
   });
-  const players = game[0].dataValues.User.map((user) => {
+  const players = game[0].dataValues.users.map((user) => {
+    console.log(user.dataValues.game_user.dataValues.score);
     return {
       username: user.dataValues.username,
-      score: user.game_User.dataValues.score,
+      score: user.dataValues.game_user.dataValues.score,
     };
   });
   res.render("score", players);
