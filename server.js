@@ -9,7 +9,7 @@ const session = require("express-session");
 const { response } = require("express");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const secret = process.env.SECRET;
-const { Game, User, Round, Game_User } = require("./models");
+const { findGame } = require("./utils/game");
 
 const app = express();
 // add websocket connection
@@ -48,19 +48,14 @@ io.of("/").adapter.on("join-room", (room, id) => {
 io.on("connection", (socket) => {
   // console.log('Client connected on socket: ' + socket.id)
   // after client connects, sends join a room msg :)
-  socket.on("join", (id, user) => {
+  socket.on("join", (id) => {
     socket.join(id);
     console.log("now playing in room: " + id);
 
     // have User join game
-    Game_User.create({
-      userId: user.id,
-      gameId: id,
-    }).then((gameUser) => {
-      // broadcast the user has joined to any other clients
-      fetchGame(id).then((game) => {
-        io.emit("game-data", game);
-      });
+    // broadcast the user has joined to any other clients
+    findGame(id).then((game) => {
+      io.emit("game-data", game);
     });
 
     // socket gets draw datas to emit to other clients
@@ -71,24 +66,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => console.log("Client has disconnected"));
 });
-
-const fetchGame = async (gameID) => {
-  return await Game.findOne({
-    where: {
-      id: gameID,
-    },
-    include: [
-      {
-        model: User,
-        through: [Game_User],
-      },
-      {
-        model: Round,
-        as: "game_rounds",
-      },
-    ],
-  });
-};
 
 // p5 board init breaks with handlebars
 app.use(express.static(path.join(__dirname, "./src")));

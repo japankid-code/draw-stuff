@@ -1,5 +1,8 @@
 const url = window.location.href.split("/");
 const gameRoom = url[url.length - 1];
+
+let dbGameDataObj;
+
 let scored; // local to prevent rescoring
 let drawStarted; // local to hide start drawing button
 let allPlayers;
@@ -9,10 +12,28 @@ let currentRound; // lowest round_number for game in db
 let leftToDraw; // dynamic list, shortens as game goes on
 let roundLength; // from game obj
 let validSessionIds;
-let dbGameDataObj;
+
 let currentUser = JSON.parse(sessionStorage.getItem("user")) || {
   session_id: "guest",
 };
+
+let socket;
+// for catching game data emitted by server socket
+const socketeer = () => {
+  socket = io.connect();
+  // socket recieves connect from server
+  socket.on("connect", () => {
+    // server takes join message, adds client to room
+    socket.emit("join", gameRoom);
+  });
+  // recieve game data from server
+  socket.on("game-data", (gameData) => {
+    dbGameDataObj = gameData;
+    distributeGameData();
+    pageRender();
+  });
+};
+socketeer();
 
 // grab relevant elements here...
 const drawWordEl = document.getElementById("draw-word");
@@ -26,34 +47,14 @@ const boardControlsEl = document.getElementById("drawing-controls-section");
 const startRoundButtonEl = document.getElementById("start-draw-btn");
 const startGameButtonEl = document.getElementById("start-game-btn");
 
-// async fetch to grab data from database
-const gameData = async (gameId) => {
-  // fetch for grabbing game data, includes player and round datas
-  const response = await fetch(`/api/game/${gameId}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
-  if (response.status >= 200 && response.status <= 299) {
-    const jsonResponse = await response.json();
-    dbGameDataObj = jsonResponse;
-  } else {
-    // Handle errors/clear interval
-    clearInterval(updateInterval);
-    console.log(response.status, response.statusText, "interval stopped!");
-    return;
-  }
-
-  mapPlayerData();
-};
-
-const mapPlayerData = () => {
+const distributeGameData = () => {
   // map players to a new array
-  players = dbGameDataObj.User.map((player) => {
+  players = dbGameDataObj.users.map((player) => {
     const playerData = {
       username: player.username,
       id: player.id,
-      score: player.game_User.score,
-      drawing: player.game_User.drawing,
+      score: player.game_user.score,
+      drawing: player.game_user.drawing,
       session_id: player.session_id,
       game_id: dbGameDataObj.id,
     };
@@ -63,9 +64,7 @@ const mapPlayerData = () => {
   // update drawingPlayer and scoringPlayers with current list from players
   drawingPlayers = players.filter((player) => player.drawing === true);
   drawingPlayer = drawingPlayers.shift(); // returns first entry from list
-  scoringPlayers = players
-    .filter((player) => player.drawing === false)
-    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  scoringPlayers = allPlayers.filter((player) => player.drawing === false);
   // set round length
   roundLength = dbGameDataObj.round_time;
   // update round data, sorted by round number, filter for uncompleted rnds
@@ -104,8 +103,7 @@ const playerDrawTimer = () => {
       0,
       1
     );
-    // refresh the list in local variables
-    await gameData(gameRoom);
+    // no need to refresh the list in local variables, socket does this
     // check if leftToDraw has any left
     if (leftToDraw[0] === undefined) {
       // end round if there aren't any drawers left
@@ -306,7 +304,6 @@ startGameButtonEl.addEventListener("click", (e) => {
 });
 
 // all things related to the canvas, socket and drawing after this line
-let socket;
 let color = "#111";
 let strokeWidth = 4;
 let cv;
@@ -319,12 +316,6 @@ function setup() {
   originParent.remove();
   cv.background(255, 255, 255);
   // Start the socket connection
-  socket = io.connect();
-
-  socket.on("connect", () => {
-    // server takes join message, adds client to room
-    socket.emit("join", gameRoom);
-  });
 
   // Callback function
   socket.on("draw", (data) => {
@@ -333,11 +324,6 @@ function setup() {
     line(data.x, data.y, data.px, data.py);
   });
 
-  socket.on("game-data", (gameData) => {
-    dbGameDataObj = gameData;
-    mapPlayerData();
-    pageRender();
-  });
   // Getting our buttons and the holder through the p5.js dom
   const color_picker = select("#pickcolor");
   const color_btn = select("#color-btn");
