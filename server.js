@@ -9,13 +9,7 @@ const session = require("express-session");
 const { response } = require("express");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const secret = process.env.SECRET;
-const {
-  findGame,
-  scoreUpdate,
-  drawingUpdate,
-  gameUpdate,
-  roundUpdate,
-} = require("./utils/game");
+const GameFunctions = require("./utils/game");
 
 const app = express();
 // add websocket connection
@@ -51,46 +45,47 @@ io.of("/").adapter.on("join-room", (room, id) => {
   // console.log(`socket ${id} has joined room ${room}`);
 });
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   // console.log('Client connected on socket: ' + socket.id)
   // after client connects, sends join a room msg :)
-  socket.on("join", (id) => {
+  socket.on("join", async (id) => {
     socket.join(id);
     console.log("now playing in room: " + id);
 
     // have User join game
     // broadcast the user has joined to any other clients
-    findAndEmit(id);
+    await findAndEmit(id);
 
     // socket recieves score update for player
-    socket.on("score-update", async ({ id, score }) => {
-      await scoreUpdate(id, score);
-      findAndEmit(id);
+    socket.on("score-update", async ({ gameId, playerId, score }) => {
+      await GameFunctions.scoreUpdate(playerId, score);
+      await findAndEmit(gameId);
     });
 
     // socket recieves drawing update for player
-    socket.on("drawing-update", async ({ id, drawing }) => {
-      await drawingUpdate(id, drawing);
-      findAndEmit(id);
+    socket.on("drawing-update", async ({ gameId, playerId, drawing }) => {
+      console.log(gameId, playerId, drawing, "drawing update");
+      await GameFunctions.drawingUpdate(playerId, drawing);
+      await findAndEmit(gameId);
     });
 
     // socket recieves game update from other clients
     socket.on("game-update", async ({ id, started, complete }) => {
-      await gameUpdate(id, started, complete);
-      findAndEmit(id);
+      await GameFunctions.gameUpdate(id, started, complete);
+      await findAndEmit(id);
     });
 
     // socket recieves update to rounds from drawing player
     socket.on(
       "round-update",
       async ({ gameId, roundNum, completeBool, player_done }) => {
-        await roundUpdate({
+        await GameFunctions.roundUpdate({
           gameId,
           roundNum,
           completeBool,
           player_done,
         });
-        findAndEmit(id);
+        await findAndEmit(id);
       }
     );
 
@@ -104,7 +99,7 @@ io.on("connection", (socket) => {
 });
 
 const findAndEmit = (id) => {
-  findGame(id).then((game) => {
+  GameFunctions.findGame(id).then((game) => {
     io.emit("game-data", game);
   });
 };

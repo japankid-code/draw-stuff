@@ -28,7 +28,7 @@ const socketeer = async () => {
   // recieve game data from server
   await socket.on("game-data", (gameData) => {
     dbGameDataObj = gameData;
-    distributeGameData();
+    distributeGameData(gameData);
     pageRender();
   });
 };
@@ -46,16 +46,16 @@ const boardControlsEl = document.getElementById("drawing-controls-section");
 const startRoundButtonEl = document.getElementById("start-draw-btn");
 const startGameButtonEl = document.getElementById("start-game-btn");
 
-const distributeGameData = () => {
+const distributeGameData = (gameData) => {
   // map players to a new array
-  players = dbGameDataObj.users.map((player) => {
+  players = gameData.users.map((player) => {
     const playerData = {
       username: player.username,
       id: player.id,
       score: player.game_user.score,
       drawing: player.game_user.drawing,
       session_id: player.session_id,
-      game_id: dbGameDataObj.id,
+      game_id: gameData.id,
     };
     return playerData;
   });
@@ -65,16 +65,16 @@ const distributeGameData = () => {
   drawingPlayer = drawingPlayers.shift(); // returns first entry from list
   scoringPlayers = allPlayers.filter((player) => player.drawing === false);
   // set round length
-  roundLength = dbGameDataObj.round_time;
+  roundLength = gameData.round_time;
   // update round data, sorted by round number, filter for uncompleted rnds
-  currentRound = dbGameDataObj.game_rounds
+  currentRound = gameData.game_rounds
     .sort((a, b) => (a.round_number < b.round_number ? -1 : 1))
-    .filter((r) => r.complete === false)
+    .filter((r) => r.complete === false && r.left_to_draw.drawers.length > 0)
     .shift(); // grab the first value, lowest round number
   // check if any rounds left
   currentRound === undefined
     ? socket.emit("game-update", {
-        id: dbGameDataObj.id,
+        id: gameData.id,
         started: 1,
         complete: 1,
       }) // none left update game as complete
@@ -84,11 +84,15 @@ const distributeGameData = () => {
 const startGame = async () => {
   // update game to started and first player to drawing
   await socket.emit("game-update", {
-    id: dbGameDataObj.id,
+    id: gameRoom,
     started: 1,
     complete: 0,
   });
-  await socket.emit("drawing-update", { id: allPlayers[0].id, drawing: 1 });
+  await socket.emit("drawing-update", {
+    gameId: gameRoom,
+    playerId: allPlayers[0].id,
+    drawing: 1,
+  });
 };
 
 // sets
@@ -101,9 +105,9 @@ const playerDrawTimer = () => {
   const timer = setTimeout(async () => {
     // after the timer has finished...
     // set drawStarted locally back to false and then update drawer in db
-    drawStarted = false;
-    const drawOff = await socket.emit("drawing-update", {
-      id: drawingPlayer.id,
+    const drawOff = socket.emit("drawing-update", {
+      gameId: gameRoom,
+      playerId: drawingPlayer.id,
       drawing: 0,
     });
     // update round's left_to_draw list
@@ -113,9 +117,30 @@ const playerDrawTimer = () => {
       complete: 0,
       player_done: 1,
     });
-    // no need to refresh the list in local variables, socket does this
-    // check if leftToDraw has any left
+    continueRoundTimer();
+    drawStarted = false;
+
+    cv.background(255, 255, 255);
+    const datum = {
+      x: 300,
+      y: 300,
+      px: 300,
+      py: 300,
+      color: "FFF",
+      strokeWidth: 9001,
+    }; // erase the board
+    socket.emit("mouse", datum);
+  }, roundLength * 1000);
+};
+
+const continueRoundTimer = async () => {
+  drawerUsernameEl.innerHTML = "waiting for next player";
+  // after a delay sets next player to draw
+  // or ends the round and sets first player to draw
+  setTimeout(async () => {
     if (leftToDraw[0] === undefined) {
+      console.log(leftToDraw);
+
       // end round if there aren't any drawers left
       const roundEnd = await socket.emit("round-update", {
         gameId: gameRoom,
@@ -124,29 +149,19 @@ const playerDrawTimer = () => {
         player_done: 0,
       });
       const startRoundDrawer = await socket.emit("drawing-update", {
-        id: scoringPlayers[0].id,
-        drawing: 0,
+        gameId: gameRoom,
+        playerId: scoringPlayers[0].id,
+        drawing: 1,
       });
     } else {
       // turn drawing on for the next player
-      const nextDrawOn = await await socket.emit("drawing-update", {
-        id: leftToDraw[0],
-        drawing: 0,
+      const nextDrawOn = await socket.emit("drawing-update", {
+        gameId: gameRoom,
+        playerId: leftToDraw[0],
+        drawing: 1,
       });
     }
-    drawStarted = false; // sets value in previous drawers client
-    cv.background(255, 255, 255);
-    // describe then emit board-erasing datum to all players from drawer client
-    const datum = {
-      x: 300,
-      y: 300,
-      px: 300,
-      py: 300,
-      color: "FFF",
-      strokeWidth: 9001,
-    };
-    socket.emit("mouse", datum);
-  }, roundLength * 1000);
+  }, 2000);
 };
 
 // update page elements
@@ -233,12 +248,12 @@ const scoringPlayerList = () => {
 // button handler for scoring on drawing player
 submitButtonEl.addEventListener("click", (e) => {
   e.preventDefault();
-  const { id } = drawingPlayer;
+  const playerId = drawingPlayer.id;
   const score = scoreSelectEl.value;
-  console.log(score);
+  const gameId = gameRoom;
   scored
     ? console.log("already scored!!")
-    : socket.emit("score-update", { id, score });
+    : socket.emit("score-update", { gameId, playerId, score });
   scored = true;
 });
 
