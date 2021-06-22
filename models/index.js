@@ -1,22 +1,22 @@
-const Game = require('./Game');
-const Users = require('./Users');
-const Game_Users = require('./Game_Users');
-const Round = require('./Round')
+const Game = require("./Game");
+const User = require("./User");
+const Game_User = require("./Game_User");
+const Round = require("./Round");
 
-Game.belongsToMany(Users, {
-  through: Game_Users
-})
+Game.belongsToMany(User, {
+  through: Game_User,
+});
 
-Users.belongsToMany(Game, {
-  through: Game_Users
-})
+User.belongsToMany(Game, {
+  through: Game_User,
+});
 
 Game.hasMany(Round, {
-  foreignKey: 'game_id'
-})
+  foreignKey: "game_id",
+});
 
 Round.belongsTo(Game, {
-  foreignKey: 'game_id'
-})
+  foreignKey: "game_id",
+});
 
-module.exports = { Users, Game, Game_Users, Round };
+module.exports = { User, Game, Game_User, Round };
