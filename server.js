@@ -70,9 +70,9 @@ io.on("connection", async (socket) => {
     });
 
     // socket recieves game update from other clients
-    socket.on("game-update", async ({ id, started, complete }) => {
-      await GameFunctions.gameUpdate(id, started, complete);
-      await findAndEmit(id);
+    socket.on("game-update", async ({ gameId, started, complete }) => {
+      await GameFunctions.gameUpdate(gameId, started, complete);
+      await findAndEmit(gameId);
     });
 
     // socket recieves update to rounds from drawing player
@@ -85,13 +85,14 @@ io.on("connection", async (socket) => {
           completeBool,
           player_done,
         });
+        await io.to(id).emit("allow-scoring");
         await findAndEmit(id);
       }
     );
 
     // socket gets draw datas to emit to other clients
     socket.on("mouse", (data) => {
-      socket.to(id).emit("draw", data);
+      io.to(id).emit("draw", data);
     });
   });
 
@@ -100,7 +101,7 @@ io.on("connection", async (socket) => {
 
 const findAndEmit = (id) => {
   GameFunctions.findGame(id).then((game) => {
-    io.emit("game-data", game);
+    io.to(id).emit("game-data", game);
   });
 };
 // p5 board init breaks with handlebars

@@ -41,7 +41,7 @@ Game.init(
         const { phrases } = draw_list;
         const random = Math.floor(Math.random() * phrases.length);
         for (let i = 0; i < rounds; i++) {
-          Round.create({
+          let round = await Round.create({
             complete: false,
             round_number: i + 1,
             phrase: phrases[Math.floor(Math.random() * phrases.length)],
