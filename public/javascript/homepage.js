@@ -81,6 +81,7 @@ async function addUserToGame(game_id, user_id) {
       "Content-Type": "application/json",
     },
   });
+
   const data = await response.json();
   window.location = `/play/${game_id}`;
   return data;

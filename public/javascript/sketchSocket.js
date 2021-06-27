@@ -77,7 +77,6 @@ const distributeGameData = (gameData) => {
     .filter((r) => r.complete === false && r.left_to_draw.drawers.length > 0)
     .shift(); // grab the first value, lowest round number
   // check if any rounds left
-  console.log(currentRound);
   currentRound === undefined
     ? socket.emit("game-update", {
         gameId: gameData.id,

@@ -2,8 +2,18 @@ const router = require("express").Router();
 const path = require("path");
 const { Game, User, Game_User, Round } = require("../models");
 
-router.get("/", (req, res) => {
-  res.render("index");
+router.get("/", async (req, res) => {
+  const gamesData = await Game.findAll({});
+  const games = gamesData
+    .map((game) => {
+      if (!game.dataValues.complete) {
+        return game.dataValues;
+      }
+      return;
+    })
+    .filter((game) => game);
+  console.log(games);
+  res.render("index", games);
 });
 
 // rendering for score pages will happen at /game/1/score
