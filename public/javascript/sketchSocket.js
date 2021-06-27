@@ -31,6 +31,11 @@ const socketeer = async () => {
     distributeGameData(gameData);
     pageRender();
   });
+
+  socket.on("allow-scoring", () => {
+    scored = false;
+    drawerUsernameEl.innerHTML = "waiting for next player";
+  });
 };
 socketeer();
 
@@ -72,9 +77,10 @@ const distributeGameData = (gameData) => {
     .filter((r) => r.complete === false && r.left_to_draw.drawers.length > 0)
     .shift(); // grab the first value, lowest round number
   // check if any rounds left
+  console.log(currentRound);
   currentRound === undefined
     ? socket.emit("game-update", {
-        id: gameData.id,
+        gameId: gameData.id,
         started: 1,
         complete: 1,
       }) // none left update game as complete
@@ -84,7 +90,7 @@ const distributeGameData = (gameData) => {
 const startGame = async () => {
   // update game to started and first player to drawing
   await socket.emit("game-update", {
-    id: gameRoom,
+    gameId: gameRoom,
     started: 1,
     complete: 0,
   });
@@ -134,7 +140,6 @@ const playerDrawTimer = () => {
 };
 
 const continueRoundTimer = async () => {
-  drawerUsernameEl.innerHTML = "waiting for next player";
   // after a delay sets next player to draw
   // or ends the round and sets first player to draw
   setTimeout(async () => {
