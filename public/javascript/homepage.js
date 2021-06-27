@@ -63,9 +63,16 @@ async function createGame(rounds, roundTime, drawList) {
     headers: {
       "Content-Type": "application/json",
     },
-  });
-  const data = await response.json();
-  return data;
+  })
+    .then((resp) => resp.json())
+    .then(async (data) => {
+      if (data.success) {
+        const gameData = data.dataValues;
+        return gameData;
+      } else {
+        handleErrors(data.errors);
+      }
+    });
 }
 // fetch function to add a user as player of a game
 // this one should eventually redirect to '/play/:id' passing in the game id

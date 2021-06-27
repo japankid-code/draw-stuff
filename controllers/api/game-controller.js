@@ -149,13 +149,25 @@ router.post("/", async (req, res) => {
       .status(400)
       .send({ Error: "draw_list, rounds and round_time must all not be null" });
   } else {
-    const newGame = await Game.create({
-      draw_list: drawList,
-      rounds: numRounds,
-      round_time: roundTime,
-      complete: false,
-    });
-    res.status(200).send(newGame);
+    try {
+      const newGame = await Game.create({
+        draw_list: drawList,
+        rounds: numRounds,
+        round_time: roundTime,
+        complete: false,
+      });
+      res.status(200).send({ ...newGame, success: true });
+    } catch (err) {
+      if (err.name === "SequelizeValidationError") {
+        const errors = err.errors.map((e) => ({
+          field: e.path,
+          message: e.message,
+        }));
+        return res.status(400).send({ success: false, errors });
+      } else {
+        console.error(err);
+      }
+    }
   }
 });
 

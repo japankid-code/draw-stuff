@@ -20,9 +20,23 @@ Game.init(
     },
     rounds: {
       type: DataTypes.INTEGER,
+      validate: {
+        min: { args: [1], msg: "Game must have 1-10 rounds!" },
+        max: { args: [10], msg: "Game must have 1-10 rounds!" },
+      },
     },
     round_time: {
       type: DataTypes.INTEGER,
+      validate: {
+        min: {
+          args: [5],
+          msg: "Round length must be between 5 and 60 seconds!",
+        },
+        max: {
+          args: [60],
+          msg: "Round length must be between 5 and 60 seconds!",
+        },
+      },
     },
     started: {
       type: DataTypes.BOOLEAN,

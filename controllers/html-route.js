@@ -12,7 +12,6 @@ router.get("/", async (req, res) => {
       return;
     })
     .filter((game) => game);
-  console.log(games);
   res.render("index", games);
 });
 
@@ -26,7 +25,6 @@ router.get("/game/:id/score", async (req, res) => {
     ],
   });
   const players = game[0].dataValues.users.map((user) => {
-    console.log(user.dataValues.game_user.dataValues.score);
     return {
       username: user.dataValues.username,
       score: user.dataValues.game_user.dataValues.score,
