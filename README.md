@@ -1,6 +1,6 @@
 # draw-stuff
 
-websocket drawing app. Link to repo is [here](https://github.com/bootcamp-second-project/draw-stuff).
+websocket drawing app. Link to repo is [here](https://github.com/bootcamp-second-project/draw-stuff). Deployed application is [here](https://draw-with-friendz.herokuapp.com/)
 
 ![MIT badge](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge) ![language badge](https://img.shields.io/github/languages/top/bootcamp-second-project/draw-stuff?style=for-the-badge)
 
