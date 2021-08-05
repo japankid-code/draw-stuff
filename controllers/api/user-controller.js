@@ -1,14 +1,14 @@
 const router = require("express").Router();
-const { Game, Users, Game_Users, Round } = require("../../models");
+const { Game, User, Game_User, Round } = require("../../models");
 // The `/api/account` endpoint
 
 router.get("/", async (req, res) => {
-  const users = await Users.findAll();
+  const users = await User.findAll();
   // Return user data as JSON
   if (users != null) {
     res.status(200).send(users);
   } else {
-    res.status(400).send(`Users do not exist`);
+    res.status(400).send(`User do not exist`);
   }
 });
 /**
@@ -21,12 +21,12 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const id = req.params.id;
   // Find user by primary key ID
-  const user = await Users.findOne({
+  const user = await User.findOne({
     where: { id: id },
     include: [
       {
         model: Game,
-        through: [Game_Users],
+        through: [Game_User],
       },
     ],
   });
@@ -49,7 +49,7 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", async (req, res) => {
   try {
-    const user = await Users.create({
+    const user = await User.create({
       username: req.body.username,
       avatar_id: req.body.avatarId,
       session_id: req.session.id,
